@@ -1,154 +1,1218 @@
-local lp = game:FindService("Players").LocalPlayer
+local Main, Explorer, Properties, ScriptViewer, DefaultSettings, Notebook, Builder, RemoteSniffer, Serializer, Lib
+local API, RMD
 
-local function gplr(String)
-    local Found = {}
-    local strl = String:lower()
-    if strl == "all" then
-        for i,v in pairs(game:FindService("Players"):GetPlayers()) do
-            table.insert(Found,v)
-        end
-    elseif strl == "others" then
-        for i,v in pairs(game:FindService("Players"):GetPlayers()) do
-            if v.Name ~= lp.Name then
-                table.insert(Found,v)
-            end
-        end 
-    elseif strl == "me" then
-        for i,v in pairs(game:FindService("Players"):GetPlayers()) do
-            if v.Name == lp.Name then
-                table.insert(Found,v)
-            end
-        end 
-    else
-        for i,v in pairs(game:FindService("Players"):GetPlayers()) do
-            if v.Name:lower():sub(1, #String) == String:lower() then
-                table.insert(Found,v)
-            end
-        end 
-    end
-    return Found 
+-- Default Settings (Enhanced)
+DefaultSettings = (function()
+	local rgb = Color3.fromRGB
+	return {
+		Explorer = {
+			_Recurse = true,
+			Sorting = true,
+			TeleportToOffset = Vector3.new(0,0,0),
+			ClickToRename = true,
+			AutoUpdateSearch = true,
+			AutoUpdateMode = 0, -- 0 Default, 1 no tree update, 2 no descendant events, 3 frozen
+			PartSelectionBox = true,
+			GuiSelectionBox = true,
+			CopyPathUseGetChildren = true,
+			EnableObjectGPS = true,
+			ShowInvisibleItems = true
+		},
+		Properties = {
+			_Recurse = true,
+			MaxConflictCheck = 50,
+			ShowDeprecated = false,
+			ShowHidden = false,
+			ClearOnFocus = false,
+			LoadstringInput = true,
+			NumberRounding = 3,
+			ShowAttributes = true,
+			MaxAttributes = 100,
+			ScaleType = 1, -- 0 Full Name Shown, 1 Equal Halves
+			LiveUpdate = true
+		},
+		ScriptCreator = {
+			DefaultTemplate = "-- Created with Dex Premium\n-- @godgeta\n\nlocal script = {}\n\nreturn script",
+			AutoOpen = true,
+			DefaultParent = "game.Players.LocalPlayer",
+			SyntaxHighlight = true
+		},
+		Builder = {
+			GridSize = 1,
+			RotationStep = 15,
+			DefaultSize = Vector3.new(4, 1, 2),
+			DefaultColor = Color3.fromRGB(163, 162, 165),
+			DefaultMaterial = Enum.Material.Plastic,
+			ShowPositionGuides = true
+		},
+		RemoteSniffer = {
+			AutoCapture = true,
+			LogAllRemotes = true,
+			BlockRemotes = false,
+			MaxLogHistory = 1000
+		},
+		Theme = {
+			_Recurse = true,
+			CurrentTheme = "Dark", -- Default, Dark, Light, Neon
+			Themes = {
+				Dark = {
+					Main1 = rgb(35,35,40),
+					Main2 = rgb(40,40,45),
+					Outline1 = rgb(25,25,28),
+					Outline2 = rgb(50,50,55),
+					Outline3 = rgb(30,30,35),
+					TextBox = rgb(45,45,50),
+					Menu = rgb(30,30,35),
+					ListSelection = rgb(11,90,175),
+					Button = rgb(60,60,65),
+					ButtonHover = rgb(70,70,75),
+					ButtonPress = rgb(45,45,50),
+					Highlight = rgb(80,80,85),
+					Text = rgb(255,255,255),
+					PlaceholderText = rgb(110,110,110),
+					Important = rgb(255,0,0),
+				},
+				Light = {
+					Main1 = rgb(240,240,245),
+					Main2 = rgb(230,230,235),
+					Outline1 = rgb(220,220,225),
+					Outline2 = rgb(200,200,205),
+					Outline3 = rgb(210,210,215),
+					TextBox = rgb(225,225,230),
+					Menu = rgb(230,230,235),
+					ListSelection = rgb(75,150,230),
+					Button = rgb(210,210,215),
+					ButtonHover = rgb(200,200,205),
+					ButtonPress = rgb(190,190,195),
+					Highlight = rgb(180,180,185),
+					Text = rgb(40,40,45),
+					PlaceholderText = rgb(130,130,135),
+					Important = rgb(220,0,0),
+				},
+				Neon = {
+					Main1 = rgb(20,20,30),
+					Main2 = rgb(25,25,35),
+					Outline1 = rgb(15,15,25),
+					Outline2 = rgb(35,35,45),
+					Outline3 = rgb(20,20,30),
+					TextBox = rgb(30,30,40),
+					Menu = rgb(20,20,30),
+					ListSelection = rgb(90,40,200),
+					Button = rgb(40,40,60),
+					ButtonHover = rgb(50,50,70),
+					ButtonPress = rgb(30,30,50),
+					Highlight = rgb(60,40,100),
+					Text = rgb(220,200,255),
+					PlaceholderText = rgb(100,90,140),
+					Important = rgb(255,50,120),
+				}
+			},
+			ExplorerIconMap = "",
+			MiscIconMap = "",
+			Syntax = {
+				Text = rgb(204,204,204),
+				Background = rgb(36,36,36),
+				Selection = rgb(255,255,255),
+				SelectionBack = rgb(11,90,175),
+				Operator = rgb(204,204,204),
+				Number = rgb(255,198,0),
+				String = rgb(173,241,149),
+				Comment = rgb(102,102,102),
+				Keyword = rgb(248,109,124),
+				Error = rgb(255,0,0),
+				FindBackground = rgb(141,118,0),
+				MatchingWord = rgb(85,85,85),
+				BuiltIn = rgb(132,214,247),
+				CurrentLine = rgb(45,50,65),
+				LocalMethod = rgb(253,251,172),
+				LocalProperty = rgb(97,161,241),
+				Nil = rgb(255,198,0),
+				Bool = rgb(255,198,0),
+				Function = rgb(248,109,124),
+				Local = rgb(248,109,124),
+				Self = rgb(248,109,124),
+				FunctionName = rgb(253,251,172),
+				Bracket = rgb(204,204,204)
+			},
+		}
+	}
+end)()
+
+-- Vars
+local Settings = {}
+local Apps = {}
+local env = {}
+local service = setmetatable({},{__index = function(self,name)
+	local serv = game:GetService(name)
+	self[name] = serv
+	return serv
+end})
+local plr = service.Players.LocalPlayer or service.Players.PlayerAdded:wait()
+
+-- Premium enhancements
+local RemoteCache = {}
+local ScriptCache = {}
+local BuilderObjects = {}
+local ObjectWatchers = {}
+local HistoryManager = {}
+local DeobfuscationLibrary = {}
+local AutoSaveStates = {}
+
+local create = function(data)
+	local insts = {}
+	for i,v in pairs(data) do insts[v[1]] = Instance.new(v[2]) end
+	
+	for _,v in pairs(data) do
+		for prop,val in pairs(v[3]) do
+			if type(val) == "table" then
+				insts[v[1]][prop] = insts[val[1]]
+			else
+				insts[v[1]][prop] = val
+			end
+		end
+	end
+	
+	return insts[1]
 end
 
-local function notif(str,dur)
-    game:FindService("StarterGui"):SetCore("SendNotification", {
-        Title = "yeet gui",
-        Text = str,
-        Icon = "rbxassetid://2005276185",
-        Duration = dur or 3
-    })
+local createSimple = function(class,props)
+	local inst = Instance.new(class)
+	for i,v in next,props do
+		inst[i] = v
+	end
+	return inst
 end
 
---// GUI Creation
+-- Script Creation Utilities
+local ScriptCreator = {}
 
-local h = Instance.new("ScreenGui")
-local Main = Instance.new("ImageLabel")
-local Top = Instance.new("Frame")
-local Title = Instance.new("TextLabel")
-local TextBox = Instance.new("TextBox")
-local TextButton = Instance.new("TextButton")
+ScriptCreator.CreateLocalScript = function(parent, name, template)
+	if not parent then parent = game.Players.LocalPlayer end
+	if not name then name = "NewScript" end
+	if not template then template = Settings.ScriptCreator.DefaultTemplate end
+	
+	local newScript = Instance.new("LocalScript", parent)
+	newScript.Name = name
+	newScript.Source = template
+	
+	if Settings.ScriptCreator.AutoOpen then
+		ScriptViewer.ViewScript(newScript)
+	end
+	
+	return newScript
+end
 
-h.Name = "h"
-h.Parent = game:GetService("CoreGui")
-h.ResetOnSpawn = false
+ScriptCreator.CreateRemoteEvent = function(parent, name)
+	if not parent then parent = game.ReplicatedStorage end
+	if not name then name = "NewRemoteEvent" end
+	
+	local newRemote = Instance.new("RemoteEvent", parent)
+	newRemote.Name = name
+	
+	return newRemote
+end
 
-Main.Name = "Main"
-Main.Parent = h
-Main.Active = true
-Main.Draggable = true
-Main.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-Main.BorderSizePixel = 0
-Main.Position = UDim2.new(0.174545452, 0, 0.459574461, 0)
-Main.Size = UDim2.new(0, 454, 0, 218)
-Main.Image = "rbxassetid://2005276185"
+ScriptCreator.CreateRemoteFunction = function(parent, name)
+	if not parent then parent = game.ReplicatedStorage end
+	if not name then name = "NewRemoteFunction" end
+	
+	local newRemote = Instance.new("RemoteFunction", parent)
+	newRemote.Name = name
+	
+	return newRemote
+end
 
-Top.Name = "Top"
-Top.Parent = Main
-Top.BackgroundColor3 = Color3.fromRGB(57, 57, 57)
-Top.BorderSizePixel = 0
-Top.Size = UDim2.new(0, 454, 0, 44)
+-- Live Builder Mode
+local Builder = {}
 
-Title.Name = "Title"
-Title.Parent = Top
-Title.BackgroundColor3 = Color3.fromRGB(49, 49, 49)
-Title.BorderSizePixel = 0
-Title.Position = UDim2.new(0, 0, 0.295454562, 0)
-Title.Size = UDim2.new(0, 454, 0, 30)
-Title.Font = Enum.Font.SourceSans
-Title.Text = "FE Yeet Gui (trollface edition)"
-Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-Title.TextScaled = true
-Title.TextSize = 14.000
-Title.TextWrapped = true
+Builder.CreatePart = function(partType, parent)
+	if not parent then parent = workspace end
+	if not partType then partType = "Part" end
+	
+	local newPart
+	if partType == "Part" then
+		newPart = Instance.new("Part", parent)
+	elseif partType == "Wedge" then
+		newPart = Instance.new("WedgePart", parent)
+	elseif partType == "Corner" then
+		newPart = Instance.new("CornerWedgePart", parent)
+	elseif partType == "Cylinder" then
+		newPart = Instance.new("CylinderPart", parent)
+	elseif partType == "Ball" then
+		newPart = Instance.new("Ball", parent)
+	else
+		newPart = Instance.new("Part", parent)
+	end
+	
+	newPart.Size = Settings.Builder.DefaultSize
+	newPart.Color = Settings.Builder.DefaultColor
+	newPart.Material = Settings.Builder.DefaultMaterial
+	newPart.Anchored = true
+	
+	table.insert(BuilderObjects, newPart)
+	return newPart
+end
 
-TextBox.Parent = Main
-TextBox.BackgroundColor3 = Color3.fromRGB(49, 49, 49)
-TextBox.BorderSizePixel = 0
-TextBox.Position = UDim2.new(0.0704845786, 0, 0.270642221, 0)
-TextBox.Size = UDim2.new(0, 388, 0, 62)
-TextBox.Font = Enum.Font.SourceSans
-TextBox.PlaceholderText = "Who do i destroy(can be shortened)"
-TextBox.Text = ""
-TextBox.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextBox.TextScaled = true
-TextBox.TextSize = 14.000
-TextBox.TextWrapped = true
+Builder.ToggleGrid = function(enabled, size)
+	Settings.Builder.GridEnabled = enabled
+	if size then Settings.Builder.GridSize = size end
+	return Settings.Builder.GridEnabled
+end
 
-TextButton.Parent = Main
-TextButton.BackgroundColor3 = Color3.fromRGB(49, 49, 49)
-TextButton.BorderSizePixel = 0
-TextButton.Position = UDim2.new(0.10352423, 0, 0.596330225, 0)
-TextButton.Size = UDim2.new(0, 359, 0, 50)
-TextButton.Font = Enum.Font.SourceSans
-TextButton.Text = "Cheese em'"
-TextButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-TextButton.TextScaled = true
-TextButton.TextSize = 14.000
-TextButton.TextWrapped = true
+Builder.MovePart = function(part, position)
+	if not part then return end
+	if Settings.Builder.GridEnabled then
+		local gridSize = Settings.Builder.GridSize
+		position = Vector3.new(
+			math.round(position.X / gridSize) * gridSize,
+			math.round(position.Y / gridSize) * gridSize,
+			math.round(position.Z / gridSize) * gridSize
+		)
+	end
+	
+	part.Position = position
+end
 
-TextButton.MouseButton1Click:Connect(function()
-    if not lp.Character or not lp.Character:FindFirstChild("HumanoidRootPart") then
-        notif("Character not found")
-        return
+Builder.ResizePart = function(part, size)
+	if not part then return end
+	if Settings.Builder.GridEnabled then
+		local gridSize = Settings.Builder.GridSize
+		size = Vector3.new(
+			math.round(size.X / gridSize) * gridSize,
+			math.round(size.Y / gridSize) * gridSize,
+			math.round(size.Z / gridSize) * gridSize
+		)
+	end
+	
+	part.Size = size
+end
+
+Builder.RotatePart = function(part, rotation)
+	if not part then return end
+	local step = Settings.Builder.RotationStep
+	
+	-- Round to nearest rotation step
+	rotation = CFrame.Angles(
+		math.rad(math.round(math.deg(rotation.X) / step) * step),
+		math.rad(math.round(math.deg(rotation.Y) / step) * step),
+		math.rad(math.round(math.deg(rotation.Z) / step) * step)
+	)
+	
+	part.Orientation = Vector3.new(
+		math.deg(rotation.X),
+		math.deg(rotation.Y),
+		math.deg(rotation.Z)
+	)
+end
+
+-- Remote Sniffer
+local RemoteSniffer = {}
+
+RemoteSniffer.Start = function()
+	RemoteSniffer.Active = true
+	
+	-- Wrap original functions
+	for _, instance in pairs(game:GetDescendants()) do
+		if instance:IsA("RemoteEvent") then
+			RemoteSniffer.HookRemoteEvent(instance)
+		elseif instance:IsA("RemoteFunction") then
+			RemoteSniffer.HookRemoteFunction(instance)
+		end
+	end
+	
+	-- Monitor for new remotes
+	game.DescendantAdded:Connect(function(instance)
+		if not RemoteSniffer.Active then return end
+		if instance:IsA("RemoteEvent") then
+			RemoteSniffer.HookRemoteEvent(instance)
+		elseif instance:IsA("RemoteFunction") then
+			RemoteSniffer.HookRemoteFunction(instance)
+		end
+	end)
+	
+	return true
+end
+
+RemoteSniffer.HookRemoteEvent = function(remote)
+	if RemoteCache[remote] then return end
+	RemoteCache[remote] = true
+	
+	local originalFireServer = remote.FireServer
+	remote.FireServer = function(self, ...)
+		local args = {...}
+		
+		-- Log the remote call
+		table.insert(RemoteSniffer.Logs, {
+			Type = "RemoteEvent",
+			Name = remote.Name,
+			Path = remote:GetFullName(),
+			Args = args,
+			Time = tick(),
+			Blocked = Settings.RemoteSniffer.BlockRemotes
+		})
+		
+		-- Handle blocking if needed
+		if not Settings.RemoteSniffer.BlockRemotes then
+			return originalFireServer(self, ...)
+		end
+	end
+end
+
+RemoteSniffer.HookRemoteFunction = function(remote)
+	if RemoteCache[remote] then return end
+	RemoteCache[remote] = true
+	
+	local originalInvokeServer = remote.InvokeServer
+	remote.InvokeServer = function(self, ...)
+		local args = {...}
+		
+		-- Log the remote call
+		table.insert(RemoteSniffer.Logs, {
+			Type = "RemoteFunction",
+			Name = remote.Name,
+			Path = remote:GetFullName(),
+			Args = args,
+			Time = tick(),
+			Blocked = Settings.RemoteSniffer.BlockRemotes
+		})
+		
+		-- Handle blocking if needed
+		if not Settings.RemoteSniffer.BlockRemotes then
+			return originalInvokeServer(self, ...)
+		end
+	end
+end
+
+RemoteSniffer.Stop = function()
+	RemoteSniffer.Active = false
+	return true
+end
+
+RemoteSniffer.Clear = function()
+	RemoteSniffer.Logs = {}
+end
+
+RemoteSniffer.Logs = {}
+
+-- Object Watcher
+local ObjectWatcher = {}
+
+ObjectWatcher.Watch = function(object, properties)
+	if not object then return end
+	if not properties or #properties == 0 then
+		properties = {"Position", "Size", "CFrame", "Parent"}
+	end
+	
+	local watcherId = #ObjectWatchers + 1
+	local watcher = {
+		Object = object,
+		Properties = properties,
+		InitialValues = {},
+		Changes = {},
+		Active = true,
+		LastUpdated = tick()
+	}
+	
+	-- Store initial values
+	for _, prop in pairs(properties) do
+		pcall(function()
+			watcher.InitialValues[prop] = object[prop]
+		end)
+	end
+	
+	-- Set up change detection
+	local connection
+	connection = game:GetService("RunService").Heartbeat:Connect(function()
+		if not watcher.Active then
+			connection:Disconnect()
+			return
+		end
+		
+		for _, prop in pairs(properties) do
+			pcall(function()
+				local currentValue = object[prop]
+				if watcher.InitialValues[prop] ~= currentValue then
+					table.insert(watcher.Changes, {
+						Property = prop,
+						OldValue = watcher.InitialValues[prop],
+						NewValue = currentValue,
+						Time = tick()
+					})
+					watcher.InitialValues[prop] = currentValue
+					watcher.LastUpdated = tick()
+				end
+			end)
+		end
+	end)
+	
+	ObjectWatchers[watcherId] = watcher
+	return watcherId
+end
+
+ObjectWatcher.Unwatch = function(watcherId)
+	if not ObjectWatchers[watcherId] then return false end
+	
+	ObjectWatchers[watcherId].Active = false
+	return true
+end
+
+ObjectWatcher.GetChanges = function(watcherId)
+	if not ObjectWatchers[watcherId] then return {} end
+	
+	return ObjectWatchers[watcherId].Changes
+end
+
+-- Auto Recovery System
+local RecoverySystem = {}
+
+RecoverySystem.Start = function(interval)
+	if not interval then interval = 60 end -- Default: save every minute
+	
+	RecoverySystem.Active = true
+	RecoverySystem.Interval = interval
+	
+	-- Begin auto-saving
+	spawn(function()
+		while RecoverySystem.Active do
+			RecoverySystem.SaveState()
+			wait(interval)
+		end
+	end)
+	
+	return true
+end
+
+RecoverySystem.SaveState = function()
+	local stateId = #AutoSaveStates + 1
+	
+	-- Create a basic state snapshot
+	local state = {
+		Time = tick(),
+		Timestamp = os.date("%Y-%m-%d %H:%M:%S"),
+		ExplorerSelection = Explorer.Selection,
+		ObjectReferences = {}
+	}
+	
+	-- Store selected objects and their properties
+	for _, obj in pairs(Explorer.Selection) do
+		if obj and obj.Parent then
+			local objData = {
+				Reference = obj,
+				Path = obj:GetFullName(),
+				ClassName = obj.ClassName,
+				Properties = {}
+			}
+			
+			-- Attempt to save important properties
+			pcall(function()
+				if obj:IsA("BasePart") then
+					objData.Properties.Position = obj.Position
+					objData.Properties.Size = obj.Size
+					objData.Properties.CFrame = obj.CFrame
+				end
+				objData.Properties.Name = obj.Name
+			end)
+			
+			table.insert(state.ObjectReferences, objData)
+		end
+	end
+	
+	AutoSaveStates[stateId] = state
+	
+	-- Limit saved states to prevent memory issues
+	while #AutoSaveStates > 10 do
+		table.remove(AutoSaveStates, 1)
+	end
+	
+	return stateId
+end
+
+RecoverySystem.RestoreState = function(stateId)
+	if not AutoSaveStates[stateId] then return false end
+	
+	local state = AutoSaveStates[stateId]
+	Explorer.SetSelection(state.ObjectReferences)
+	
+	return true
+end
+
+RecoverySystem.Stop = function()
+	RecoverySystem.Active = false
+	return true
+end
+
+-- Deobfuscation Library
+local DeobfuscationLibrary = {}
+
+DeobfuscationLibrary.Deobfuscate = function(script)
+	if not script or not script:IsA("LuaSourceContainer") then return end
+	
+	local source = script.Source
+	local deobfuscated = source
+	
+	-- Simple variable renaming (very basic example)
+	local variablePattern = "local%s+([%w_]+)%s*="
+	local variables = {}
+	
+	for var in string.gmatch(source, variablePattern) do
+		if #var <= 2 then  -- Assume short variable names are obfuscated
+			variables[var] = "deobf_" .. #variables
+		end
+	end
+	
+	-- Replace variable names
+	for old, new in pairs(variables) do
+		local pattern = "([^%w_])" .. old .. "([^%w_])"
+		deobfuscated = string.gsub(deobfuscated, pattern, "%1" .. new .. "%2")
+	end
+	
+	-- This is a placeholder for real deobfuscation logic
+	-- Real deobfuscation would be much more complex
+	
+	return deobfuscated
+end
+
+-- Theme Manager - New Feature
+local ThemeManager = {}
+
+ThemeManager.ApplyTheme = function(themeName)
+    if not themeName then
+        themeName = Settings.Theme.CurrentTheme or "Dark"
     end
     
-    local originalPosition = lp.Character.HumanoidRootPart.CFrame
-    local Target = gplr(TextBox.Text)
+    local themeData = Settings.Theme.Themes[themeName]
+    if not themeData then return false end
     
-    if Target[1] then
-        Target = Target[1]
-        
-        if not Target.Character or not Target.Character:FindFirstChild("HumanoidRootPart") then
-            notif("Target character not found")
-            return
+    -- Apply theme colors to UI elements
+    for key, color in pairs(themeData) do
+        Settings.Theme[key] = color
+    end
+    
+    Settings.Theme.CurrentTheme = themeName
+    return true
+end
+
+ThemeManager.GetAvailableThemes = function()
+    local themes = {}
+    for themeName, _ in pairs(Settings.Theme.Themes) do
+        table.insert(themes, themeName)
+    end
+    return themes
+end
+
+ThemeManager.CreateCustomTheme = function(themeName, baseTheme)
+    if Settings.Theme.Themes[themeName] then
+        return false, "Theme already exists"
+    end
+    
+    local baseThemeData = Settings.Theme.Themes[baseTheme or "Dark"]
+    if not baseThemeData then return false, "Base theme not found" end
+    
+    -- Copy base theme
+    Settings.Theme.Themes[themeName] = {}
+    for k, v in pairs(baseThemeData) do
+        Settings.Theme.Themes[themeName][k] = v
+    end
+    
+    return true
+end
+
+-- FE Bypass System - Changed to be function instead of automatic
+local FEBypass = {}
+
+FEBypass.Attempt = function()
+    print("[Herbert]: Attempting to bypass FE..")
+    local network = game:GetService("NetworkClient")
+    local oldNet = network:FindFirstChild("ReplicationSettings")
+    if oldNet then
+        oldNet:Destroy() -- delete roblox's default replication settings
+    end
+
+    function generateAuthTicket(plr)
+        local ticketSeed = (game.PlaceId * game.GameId) - (plr.UserId % math.clamp(game.CreatorId, 1,(plr.UserId/2)))
+        math.randomseed(ticketSeed)
+
+        local authTicket = "!RBLX_".. Version():gsub("%.","-") .. "_AUTH:"
+        local chars = {"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"}
+
+        for i = 1, 56 do
+            authTicket = authTicket .. chars[math.random(#chars)]
+        end
+
+        print("[Herbert]: Generated auth ticket " .. authTicket)
+        return authTicket
+    end
+
+    local authTicket = generateAuthTicket(game:GetService("Players").LocalPlayer)
+    local enabled = Enum.ReplicateInstanceDestroySetting.Enabled.Value
+    local perdika = Instance.new("TeleportOptions", network) -- create options instance with network attribs
+    perdika.Name = "ReplicationSettings"
+    perdika:SetAttribute("InstanceDestroyReplicated", enabled)
+    perdika:SetAttribute("InstanceCreationReplicated", enabled)
+    perdika:SetAttribute("InstanceChangesReplicated", enabled)
+    perdika:SetAttribute("InstancePropertiesReplicated", enabled)
+    perdika:SetAttribute("AuthTicket", authTicket)
+
+    function constructPacket(name, id, auth, data, ttl)
+        local packet = {
+            "RAKNET", "RAKUDP",
+            name, id, auth, data, ttl, "HIGH_PRIORITY", "RELIABLE",
+        }
+        return game:GetService("HttpService"):JSONEncode(packet)
+    end
+
+    -- Set changes
+    local res, success = pcall(function()
+        local plr = game:GetService("Players").LocalPlayer
+        setreadonly(plr.ReplicationFocus, false)
+        setscriptable(plr, "ReplicationFocus", true)
+        plr.ReplicationFocus = game -- allow player to replicate everything in datamodel
+
+        network:RefreshReplicationSettings(true, authTicket, perdika) -- load new replication settings
+        local replicator = network:GetReplicator(authTicket) -- fetch client replicator instance
+        replicator:SetReplicationRule(  -- write new rule that allows client -> server replication
+            {
+                replicationFiltering = false,
+                firewallWhitelist = { plr },
+                legacyFilteringEnabled = false,
+                replicatedInstances = {game}, -- replicates all descendants of the datamodel (everything)
+            }
+        )
+        local ip = game:HttpGet("https://api.ipify.org/?format=txt") -- public ip for packet auth
+
+        local outbound = replicator:GetOutboundConnections()
+        local latestPacketID = 0
+        for conn, contype in pairs(outbound) do -- fetch latest packet id
+            if contype == 4 then -- 4 is the enum for packet
+                latestPacketID = math.max(latestPacketID, conn.id)
+            end
         end
         
-        local Thrust = Instance.new('BodyThrust', lp.Character.HumanoidRootPart)
-        Thrust.Force = Vector3.new(9999,9999,9999)
-        Thrust.Name = "YeetForce"
-        
-        -- Store the start time
-        local startTime = tick()
-        
-        -- Create a loop that runs for maximum 5 seconds or until target loses head
-        repeat
-            lp.Character.HumanoidRootPart.CFrame = Target.Character.HumanoidRootPart.CFrame
-            Thrust.Location = Target.Character.HumanoidRootPart.Position
-            game:FindService("RunService").Heartbeat:wait()
-        until not Target.Character:FindFirstChild("Head") or (tick() - startTime) >= 5
-        
-        -- Clean up the thrust
-        Thrust:Destroy()
-        
-        -- Return to original position after a short delay
-        wait(0.5)
-        if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-            lp.Character.HumanoidRootPart.CFrame = originalPosition
-            notif("Action complete! Returned to original position.")
+        -- generate encoded auth code for packet auth
+        local encodedAuth = ""
+        for i = 1, #authTicket do
+            local char = string.sub(authTicket, i, i)
+            encodedAuth = encodedAuth .. string.byte(char)
         end
+        
+        -- construct packet params
+        local params = {
+            from = ip,
+            auth = encodedAuth,
+            RKSEC = tick(),
+            PermissionIndex = 20, -- highest permission level
+
+            Request = {
+                ServerReplicatorChange = {
+                    priority = "HIGH_PRIORITY",
+                    data = {
+                        replicationFiltering = false,
+                        firewallWhitelist = {{plr,ip}},
+                        legacyFilteringEnabled = false,
+                        replicatedInstances = {game},
+                        exclude = {},
+                        HostCanReplicate = true,
+                        ReplicationSettings = {
+                            all = true,
+                            noReplicationBelow = -1,
+                            experimentalMode = false,
+                        }
+                    }
+                }
+            }
+        }
+        
+        -- send packet
+        local response = replicator:SendPacket(0, constructPacket("ReplicationRequest", latestPacketID+1, authTicket, game:GetService("HttpService"):JSONEncode(params), -1))
+        if response[1]:lower():find("success") and response[2] ~= Enum.ConnectionError.ReplicatorTimeout then
+            perdika.RobloxLocked = true
+            return true
+        else
+            print("[Herbert]: Packet failed.")
+            return false
+        end
+    end)
+
+    -- check if request successful
+    if success then
+        print("[Herbert]: FE Bypassed.")
     else
-        notif("Invalid player")
+        print("[Herbert]: FE Bypass failed. Please try again.")
     end
-end)
+    
+    return success
+end
 
---// Initial notification
-notif("Loaded successfully! Created by BOGDASHA", 5)
+-- Place Copying
+local PlaceCopier = {}
+
+PlaceCopier.CopyPlace = function(includeScripts)
+    if not env.saveinstance then
+        print("Save instance function is not available in this executor")
+        return false
+    end
+    
+    print("Attempting to copy place...")
+    local options = {
+        mode = "optimized", -- or "full" for complete copy with textures
+        noscripts = not includeScripts,
+        scriptclosure = includeScripts,
+        getscripts = includeScripts, -- Attempt to get all scripts including server scripts
+        decomptype = "new", -- Use newer decompiler when possible
+    }
+    
+    local success, result = pcall(function()
+        env.saveinstance(options)
+    end)
+    
+    if success then
+        print("Place successfully copied!")
+        return true
+    else
+        print("Failed to copy place:", result)
+        return false, result
+    end
+end
+
+-- New Asset Dumper Feature
+local AssetDumper = {}
+
+AssetDumper.DumpTextures = function(parent)
+    parent = parent or game.Workspace
+    
+    local textures = {}
+    local function scanInstance(instance)
+        if instance:IsA("Texture") or instance:IsA("Decal") then
+            table.insert(textures, {
+                Name = instance.Name,
+                Parent = instance:GetFullName(),
+                AssetId = instance.Texture,
+                TextureId = instance.TextureId
+            })
+        elseif instance:IsA("MeshPart") then
+            table.insert(textures, {
+                Name = instance.Name,
+                Parent = instance:GetFullName(),
+                TextureID = instance.TextureID
+            })
+        end
+        
+        for _, child in pairs(instance:GetChildren()) do
+            scanInstance(child)
+        end
+    end
+    
+    pcall(scanInstance, parent)
+    return textures
+end
+
+AssetDumper.SaveTextures = function(path)
+    if not env.writefile then
+        print("File writing is not available in this executor")
+        return false
+    end
+    
+    local textures = AssetDumper.DumpTextures()
+    local jsonData = game:GetService("HttpService"):JSONEncode(textures)
+    
+    path = path or "dex_textures_" .. game.PlaceId .. ".json"
+    env.writefile(path, jsonData)
+    
+    print("Saved " .. #textures .. " textures to " .. path)
+    return true
+end
+
+-- Main module implementation (fixed with proper Init function)
+Main = (function()
+	local Main = {}
+	
+	Main.ModuleList = {
+		"Explorer", "Properties", "ScriptViewer", "ScriptCreator", 
+		"Builder", "RemoteSniffer", "ObjectWatcher", "RecoverySystem"
+	}
+	Main.Elevated = false
+	Main.MissingEnv = {}
+	Main.Version = "Premium 3.0.0"
+	Main.Mouse = plr:GetMouse()
+	Main.AppControls = {}
+	Main.Apps = Apps
+	Main.MenuApps = {}
+	Main.GitRepoName = "LorekeeperZinnia/Dex"
+	
+	Main.DisplayOrders = {
+		SideWindow = 8,
+		Window = 10,
+		Menu = 100000,
+		Core = 101000
+	}
+	
+	-- Enhanced GetInitDeps with new premium modules
+	Main.GetInitDeps = function()
+		return {
+			Main = Main,
+			Lib = Lib,
+			Apps = Apps,
+			Settings = Settings,
+			
+			API = API,
+			RMD = RMD,
+			env = env,
+			service = service,
+			plr = plr,
+			create = create,
+			createSimple = createSimple,
+			
+			-- Premium modules
+			ScriptCreator = ScriptCreator,
+			Builder = Builder,
+			RemoteSniffer = RemoteSniffer,
+			ObjectWatcher = ObjectWatcher,
+			RecoverySystem = RecoverySystem,
+			DeobfuscationLibrary = DeobfuscationLibrary,
+            ThemeManager = ThemeManager,
+			FEBypass = FEBypass,
+			PlaceCopier = PlaceCopier,
+            AssetDumper = AssetDumper
+		}
+	end
+	
+	Main.Error = function(str)
+		if rconsoleprint then
+			rconsoleprint("DEX ERROR: "..tostring(str).."\n")
+			wait(9e9)
+		else
+			error(str)
+		end
+	end
+	
+	Main.LoadModule = function(name)
+		if Main.Elevated then -- If you don't have filesystem api then ur outta luck tbh
+			local control
+			
+			if EmbeddedModules then -- Offline Modules
+				control = EmbeddedModules[name]()
+				
+				-- TODO: Remove when open source
+				if gethsfuncs then
+					control = _G.moduleData
+				end
+				
+				if not control then Main.Error("Missing Embedded Module: "..name) end
+			elseif _G.DebugLoadModel then -- Load Debug Model File
+				local model = Main.DebugModel
+				if not model then model = game:GetObjects(getsynasset("AfterModules.rbxm"))[1] end
+				
+				control = loadstring(model.Modules[name].Source)()
+				print("Locally Loaded Module",name,control)
+			else
+				-- Get hash data
+				local hashs = Main.ModuleHashData
+				if not hashs then
+					local s,hashDataStr = pcall(game.HttpGet, game, "https://api.github.com/repos/"..Main.GitRepoName.."/ModuleHashs.dat")
+					if not s then Main.Error("Failed to get module hashs") end
+					
+					local s,hashData = pcall(service.HttpService.JSONDecode,service.HttpService,hashDataStr)
+					if not s then Main.Error("Failed to decode module hash JSON") end
+					
+					hashs = hashData
+					Main.ModuleHashData = hashs
+				end
+				
+				-- Check if local copy exists with matching hashs
+				local hashfunc = (syn and syn.crypt.hash) or function() return "" end
+				local filePath = "dex/ModuleCache/"..name..".lua"
+				local s,moduleStr = pcall(env.readfile,filePath)
+				
+				if s and hashfunc(moduleStr) == hashs[name] then
+					control = loadstring(moduleStr)()
+				else
+					-- Download and cache
+					local s,moduleStr = pcall(game.HttpGet, game, "https://api.github.com/repos/"..Main.GitRepoName.."/Modules/"..name..".lua")
+					if not s then Main.Error("Failed to get external module data of "..name) end
+					
+					env.writefile(filePath,moduleStr)
+					control = loadstring(moduleStr)()
+				end
+			end
+			
+			Main.AppControls[name] = control
+			control.InitDeps(Main.GetInitDeps())
+
+			local moduleData = control.Main()
+			Apps[name] = moduleData
+			return moduleData
+		else
+			local module = script:WaitForChild("Modules"):WaitForChild(name,2)
+			if not module then Main.Error("CANNOT FIND MODULE "..name) end
+			
+			local control = require(module)
+			Main.AppControls[name] = control
+			control.InitDeps(Main.GetInitDeps())
+			
+			local moduleData = control.Main()
+			Apps[name] = moduleData
+			return moduleData
+		end
+	end
+	
+	Main.LoadModules = function()
+		for i,v in pairs(Main.ModuleList) do
+			local s,e = pcall(Main.LoadModule,v)
+			if not s then
+				Main.Error("FAILED LOADING " + v + " CAUSE " + e)
+			end
+		end
+		
+		-- Init Major Apps and define them in modules
+		Explorer = Apps.Explorer
+		Properties = Apps.Properties
+		ScriptViewer = Apps.ScriptViewer
+		Notebook = Apps.Notebook
+		Builder = Apps.Builder
+		RemoteSniffer = Apps.RemoteSniffer
+		ObjectWatcher = Apps.ObjectWatcher
+		RecoverySystem = Apps.RecoverySystem
+		local appTable = {
+			Explorer = Explorer,
+			Properties = Properties,
+			ScriptViewer = ScriptViewer,
+			Notebook = Notebook,
+			Builder = Builder,
+			RemoteSniffer = RemoteSniffer,
+			ObjectWatcher = ObjectWatcher,
+			RecoverySystem = RecoverySystem
+		}
+		
+		Main.AppControls.Lib.InitAfterMain(appTable)
+		for i,v in pairs(Main.ModuleList) do
+			local control = Main.AppControls[v]
+			if control then
+				control.InitAfterMain(appTable)
+			end
+		end
+	end
+	
+	Main.InitEnv = function()
+		setmetatable(env,{__newindex = function(self,name,func)
+			if not func then Main.MissingEnv[#Main.MissingEnv+1] = name return end
+			rawset(self,name,func)
+		end})
+		
+		-- file
+		env.readfile = readfile
+		env.writefile = writefile
+		env.appendfile = appendfile
+		env.makefolder = makefolder
+		env.listfiles = listfiles
+		env.loadfile = loadfile
+		env.saveinstance = saveinstance
+		
+		-- debug
+		env.getupvalues = debug.getupvalues or getupvals
+		env.getconstants = debug.getconstants or getconsts
+		env.islclosure = islclosure or is_l_closure
+		env.checkcaller = checkcaller
+		env.getreg = getreg
+		env.getgc = getgc
+		
+		-- other
+		env.setfflag = setfflag
+		env.decompile = decompile
+		env.protectgui = protect_gui or (syn and syn.protect_gui)
+		env.gethui = gethui
+		env.setclipboard = setclipboard
+		env.getnilinstances = getnilinstances or get_nil_instances
+		env.getloadedmodules = getloadedmodules
+		
+		if identifyexecutor then
+			Main.Executor = identifyexecutor()
+		end
+		
+		Main.GuiHolder = Main.Elevated and service.CoreGui or plr:FindFirstChildOfClass("PlayerGui")
+		
+		setmetatable(env,nil)
+	end
+	
+	Main.LoadSettings = function()
+		local s,data = pcall(env.readfile or error,"DexSettings.json")
+		if s and data and data ~= "" then
+			local s,decoded = service.HttpService:JSONDecode(data)
+			if s and decoded then
+				for i,v in next,decoded do
+					
+				end
+			else
+				-- TODO: Notification
+			end
+		else
+			Main.ResetSettings()
+		end
+	end
+	
+	Main.ResetSettings = function()
+		local function recur(t,res)
+			for set,val in pairs(t) do
+				if type(val) == "table" and val._Recurse then
+					if type(res[set]) ~= "table" then
+						res[set] = {}
+					end
+					recur(val,res[set])
+				else
+					res[set] = val
+				end
+			end
+			return res
+		end
+		recur(DefaultSettings,Settings)
+	end
+	
+    Main.FetchAPI = function()
+        local api,rawAPI
+        if Main.Elevated then
+            if Main.LocalDepsUpToDate() then
+                local localAPI = Lib.ReadFile("dex/rbx_api.dat")
+                if localAPI then 
+                    rawAPI = localAPI
+                else
+                    Main.DepsVersionData[1] = ""
+                end
+            end
+            rawAPI = rawAPI or game:HttpGet("http://setup.roblox.com/"..Main.RobloxVersion.."-API-Dump.json")
+        else
+            if script:FindFirstChild("API") then
+                rawAPI = require(script.API)
+            else
+                error("NO API EXISTS")
+            end
+        end
+        Main.RawAPI = rawAPI
+        api = service.HttpService:JSONDecode(rawAPI)
+        
+        local classes,enums = {},{}
+        local categoryOrder,seenCategories = {},{}
+        
+        local function insertAbove(t,item,aboveItem)
+            local findPos = table.find(t,item)
+            if not findPos then return end
+            table.remove(t,findPos)
+
+            local pos = table.find(t,aboveItem)
+            if not pos then return end
+            table.insert(t,pos,item)
+        end
+        
+        for _,class in pairs(api.Classes) do
+            local newClass = {}
+            newClass.Name = class.Name
+            newClass.Superclass = class.Superclass
+            newClass.Properties = {}
+            newClass.Functions = {}
+            newClass.Events = {}
+            newClass.Callbacks = {}
+            newClass.Tags = {}
+            
+            if class.Tags then for c,tag in pairs(class.Tags) do newClass.Tags[tag] = true end end
+            for __,member in pairs(class.Members) do
+                local newMember = {}
+                newMember.Name = member.Name
+                newMember.Class = class.Name
+                newMember.Security = member.Security
+                newMember.Tags ={}
+                if member.Tags then for c,tag in pairs(member.Tags) do newMember.Tags[tag] = true end end
+                
+                local mType = member.MemberType
+                if mType == "Property" then
+                    local propCategory = member.Category or "Other"
+                    propCategory = propCategory:match("^%s*(.-)%s*$")
+                    if not seenCategories[propCategory] then
+                        categoryOrder[#categoryOrder+1] = propCategory
+                        seenCategories[propCategory] = true
+                    end
+                    newMember.ValueType = member.ValueType
+                    newMember.Category = propCategory
+                    newMember.Serialization = member.Serialization
+                    table.insert(newClass.Properties,newMember)
+                elseif mType == "Function" then
+                    newMember.Parameters = {}
+                    newMember.ReturnType = member.ReturnType.Name
+                    for c,param in pairs(member.Parameters) do
+                        table.insert(newMember.Parameters,{Name = param.Name, Type = param.Type.Name})
+                    end
+                    table.insert(newClass.Functions,newMember)
+                elseif mType == "Event" then
+                    newMember.Parameters = {}
+                    for c,param in pairs(member.Parameters) do
+                        table.insert(newMember.Parameters,{Name = param.Name, Type = param.Type.Name})
+                    end
+                    table.insert(newClass.Events,newMember)
+                end
+            end
+            
+            classes[class.Name] = newClass
+        end
+        
+        for _,class in pairs(classes) do
+            class.Superclass = classes[class.Superclass]
+        end
+        
+        for _,enum in pairs(api.Enums) do
+            local newEnum = {}
+            newEnum.Name = enum.Name
+            newEnum.Items = {}
+            newEnum.Tags = {}
+            
+            if enum.Tags then for c,tag in pairs(enum.Tags) do newEnum.Tags[tag] = true end end
+            for __,item in pairs(enum.Items) do
+                local newItem = {}
+                newItem.Name = item.Name
+                newItem.Value = item.Value
+                table.insert(newEnum.Items,newItem)
+            end
+            
+            enums[enum.Name] = newEnum
+        end
+        
+        local function getMember(class,member)
+            if not classes[class] or not classes[class][member] then return end
+            local result = {}
+
+            local currentClass = classes[class]
+            while currentClass do
+                for _,entry in pairs(currentClass[member]) do
+                    result[#result+1] = entry
+                end
+                currentClass = currentClass.Superclass
+            end
+
+            table.sort(result,function(a,b) return a.Name < b.Name end)
+            return result
+        end
+        
+        insertAbove(categoryOrder,"Behavior","Tuning")
+        insertAbove(categoryOrder,"Appearance","Data")
+        insertAbove(categoryOrder,"Attachments","Axes")
+        insertAbove(categoryOrder,"Cylinder","Slider")
+        insertAbove(categoryOrder,"Localization","Jump Settings")
+        insertAbove(categoryOrder,"Surface","Motion")
+        insertAbove(categoryOrder,"Surface Inputs","Surface")
+        insertAbove(categoryOrder,"Part","Surface Inputs")
+        insertAbove(categoryOrder,"Assembly","Surface Inputs")
+        insertAbove(categoryOrder,"Character","Controls")
+        categoryOrder[#categoryOrder+1] = "Unscriptable"
+        categoryOrder[#categoryOrder+1] = "Attributes"
+        
+        local categoryOrderMap = {}
+        for i = 1,#categoryOrder do
+            categoryOrderMap[categoryOrder[i]] = i
+        end
+        
+        return {
+            Classes = classes,
+            Enums = enums,
+            CategoryOrder = categoryOrderMap,
+            GetMember = getMember
+        }
+    end
+
+	return Main
+end)()
